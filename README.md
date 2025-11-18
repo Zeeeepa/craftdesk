@@ -49,8 +49,6 @@ Think of it as:
 
 ## Installation
 
-### Global Installation
-
 ```bash
 npm install -g craftdesk
 ```
@@ -61,23 +59,13 @@ craftdesk --version
 # 0.2.0
 ```
 
-### Local Development Setup
-
-Clone and link for development:
-
-```bash
-git clone https://github.com/mensfeld/craftdesk.git
-cd craftdesk
-npm install
-npm link
-craftdesk --version
-```
-
 ### Requirements
 
 - Node.js >= 18.0.0
 - Git (for git dependencies)
 - npm or yarn
+
+> **For contributors:** See the [Development](#development) section below for building from source.
 
 ---
 

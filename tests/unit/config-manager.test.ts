@@ -20,9 +20,9 @@ describe('ConfigManager', () => {
     await cleanupTempDir(tempDir);
   });
 
-  describe('getRegistryForPackage', () => {
+  describe('getRegistryForCraft', () => {
     it('should return default registry when no craftdesk.json exists', async () => {
-      const registry = await configManager.getRegistryForPackage('test-package');
+      const registry = await configManager.getRegistryForCraft('test-craft');
       expect(registry).toBe('https://craftdesk.ai');
     });
 
@@ -37,11 +37,11 @@ describe('ConfigManager', () => {
         }
       });
 
-      const registry = await configManager.getRegistryForPackage('test-package');
+      const registry = await configManager.getRegistryForCraft('test-craft');
       expect(registry).toBe('https://custom-registry.com');
     });
 
-    it('should return scoped registry for scoped package', async () => {
+    it('should return scoped registry for scoped craft', async () => {
       await writeJsonFile(path.join(tempDir, 'craftdesk.json'), {
         name: 'test',
         version: '1.0.0',
@@ -56,11 +56,11 @@ describe('ConfigManager', () => {
         }
       });
 
-      const registry = await configManager.getRegistryForPackage('@company/auth');
+      const registry = await configManager.getRegistryForCraft('@company/auth');
       expect(registry).toBe('https://company.internal');
     });
 
-    it('should fallback to default registry for unmatched scoped package', async () => {
+    it('should fallback to default registry for unmatched scoped craft', async () => {
       await writeJsonFile(path.join(tempDir, 'craftdesk.json'), {
         name: 'test',
         version: '1.0.0',
@@ -75,7 +75,7 @@ describe('ConfigManager', () => {
         }
       });
 
-      const registry = await configManager.getRegistryForPackage('@other/package');
+      const registry = await configManager.getRegistryForCraft('@other/craft');
       expect(registry).toBe('https://craftdesk.ai');
     });
 
@@ -85,7 +85,7 @@ describe('ConfigManager', () => {
         version: '1.0.0'
       });
 
-      const registry = await configManager.getRegistryForPackage('test-package');
+      const registry = await configManager.getRegistryForCraft('test-craft');
       expect(registry).toBe('https://craftdesk.ai');
     });
   });

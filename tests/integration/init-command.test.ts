@@ -22,7 +22,7 @@ describe('craftdesk init command', () => {
 
   it('should create a new craftdesk.json file', async () => {
     // Run init command
-    execSync(`node ${cliPath} init --name test-project --version 1.0.0 --type skill`, {
+    execSync(`node ${cliPath} init --name test-project --project-version 1.0.0 --type skill`, {
       stdio: 'pipe'
     });
 
@@ -37,7 +37,7 @@ describe('craftdesk init command', () => {
   });
 
   it('should include default registry configuration', async () => {
-    execSync(`node ${cliPath} init --name test --version 1.0.0 --type agent`, {
+    execSync(`node ${cliPath} init --name test --project-version 1.0.0 --type agent`, {
       stdio: 'pipe'
     });
 
@@ -56,7 +56,7 @@ describe('craftdesk init command', () => {
 
     // Try to init again
     try {
-      execSync(`node ${cliPath} init --name test --version 1.0.0 --type skill`, {
+      execSync(`node ${cliPath} init --name test --project-version 1.0.0 --type skill`, {
         stdio: 'pipe'
       });
     } catch (error) {

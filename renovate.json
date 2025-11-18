@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "github-actions": {
+    "enabled": true,
+    "pinDigests": true
+  },
+  "includePaths": [
+    "package.json",
+    "package-lock.json"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "matchManagers": [
+        "npm"
+      ],
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "groupName": "dev dependencies",
+      "commitMessageTopic": "dev dependencies"
+    }
+  ]
+}

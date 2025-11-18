@@ -4,7 +4,7 @@
 
 The official command-line interface for managing CraftDesk AI capabilities. Similar to npm for JavaScript or bundler for Ruby, CraftDesk CLI provides a complete package management solution for AI-powered development tools.
 
-[![npm version](https://img.shields.io/npm/v/craftdesk-cli.svg)](https://www.npmjs.com/package/craftdesk-cli)
+[![npm version](https://img.shields.io/npm/v/craftdesk.svg)](https://www.npmjs.com/package/craftdesk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -31,17 +31,19 @@ The official command-line interface for managing CraftDesk AI capabilities. Simi
 
 CraftDesk is a package manager for AI capabilities used in Claude Code and other AI development environments. It allows you to:
 
-- 📦 **Install AI skills, agents, commands, and hooks** from registries or git
-- 🔒 **Lock versions** for reproducible environments across teams
-- 🌳 **Manage dependencies** with automatic transitive resolution
-- 🔐 **Use private registries** for company-internal capabilities
-- 📁 **Support monorepos** with subdirectory extraction
-- 🔄 **Mix sources** - combine registry packages with git dependencies
+- **Install AI skills, agents, commands, and hooks** from git repositories
+- **Lock versions** for reproducible environments across teams
+- **Manage dependencies** with automatic transitive resolution
+- **Support monorepos** with subdirectory extraction
+- **Auto-convert GitHub URLs** - paste any GitHub URL (tree/blob)
+- **Direct file references** - install single files from repositories
 
 Think of it as:
-- **npm** for Node.js packages → **CraftDesk** for AI capabilities
-- **Bundler** for Ruby gems → **CraftDesk** for Claude tools
-- **Cargo** for Rust crates → **CraftDesk** for AI agents
+- **npm** for Node.js → **CraftDesk** for AI capabilities
+- **Bundler** for Ruby → **CraftDesk** for Claude tools
+- **Cargo** for Rust → **CraftDesk** for AI agents
+
+> **Note:** A self-hosted registry server is currently under development and will be available soon, enabling private registries and centralized craft distribution.
 
 ---
 
@@ -50,7 +52,7 @@ Think of it as:
 ### Global Installation
 
 ```bash
-npm install -g craftdesk-cli
+npm install -g craftdesk
 ```
 
 Verify installation:
@@ -64,8 +66,8 @@ craftdesk --version
 Clone and link for development:
 
 ```bash
-git clone https://github.com/your-org/craftdesk-cli.git
-cd craftdesk-cli
+git clone https://github.com/mensfeld/craftdesk.git
+cd craftdesk
 npm install
 npm link
 craftdesk --version
@@ -102,14 +104,14 @@ This creates a `craftdesk.json` file:
 ### 2. Add Dependencies
 
 ```bash
-# Add from public registry
-craftdesk add ruby-on-rails
+# Add from GitHub (auto-converts web URLs)
+craftdesk add https://github.com/user/repo/blob/main/skill.md
 
-# Add from git
+# Add from git repository
 craftdesk add git+https://github.com/user/custom-agent.git
 
-# Add from private registry
-craftdesk add @company/internal-skill
+# Add with explicit type
+craftdesk add https://github.com/user/repo/blob/main/agent.md --type agent
 ```
 
 ### 3. Install Everything
@@ -127,9 +129,8 @@ craftdesk list
 # my-ai-project@1.0.0
 #
 # Installed crafts:
-#   📚 ruby-on-rails@7.1.2 (skill)
-#   🤖 custom-agent@main (agent)
-#   📚 @company/internal-skill@2.0.0 (skill)
+#   • my-skill@main (skill)
+#   • custom-agent@main (agent)
 ```
 
 ---
@@ -139,10 +140,10 @@ craftdesk list
 ### Crafts
 
 A **craft** is any AI capability:
-- **Skill** 📚 - Knowledge domain (e.g., ruby-on-rails, postgres-expert)
-- **Agent** 🤖 - Autonomous task executor (e.g., code-reviewer, test-runner)
-- **Command** ⚡ - Slash command (e.g., /deploy, /analyze)
-- **Hook** 🔗 - Event handler (e.g., pre-commit, post-install)
+- **Skill** - Knowledge domain (e.g., ruby-on-rails, postgres-expert)
+- **Agent** - Autonomous task executor (e.g., code-reviewer, test-runner)
+- **Command** - Slash command (e.g., /deploy, /analyze)
+- **Hook** - Event handler (e.g., pre-commit, post-install)
 
 ### Manifest File: craftdesk.json
 
@@ -255,7 +256,7 @@ craftdesk install --no-lockfile
 
 ---
 
-### `craftdesk add <package> [options]`
+### `craftdesk add <craft> [options]`
 
 Add a new dependency and install it immediately.
 
@@ -263,41 +264,44 @@ Add a new dependency and install it immediately.
 - `-D, --save-dev` - Save as devDependency
 - `-O, --save-optional` - Save as optionalDependency
 - `-E, --save-exact` - Save exact version (no ^ or ~)
+- `-t, --type <type>` - Specify craft type (skill, agent, command, hook)
 
 **Examples:**
 
 ```bash
-# Add from registry
-craftdesk add ruby-on-rails
-craftdesk add ruby-on-rails@^7.0.0
-craftdesk add @company/private-skill
-craftdesk add @company/private-skill@2.1.0
+# GitHub web URLs (auto-converted)
+craftdesk add https://github.com/user/repo/blob/main/skill.md
+craftdesk add https://github.com/user/repo/tree/main/skills/auth
 
-# Add as dev dependency
-craftdesk add code-reviewer -D
+# With explicit type
+craftdesk add https://github.com/user/repo/blob/main/agent.md --type agent
 
-# Add exact version
-craftdesk add postgres-expert@1.2.3 -E
-
-# Git dependencies
+# Git dependencies (manual format)
 craftdesk add git+https://github.com/user/repo.git
 craftdesk add git+https://github.com/user/repo.git#develop
 craftdesk add git+https://github.com/user/repo.git#v2.0.0
 
-# Git with subdirectory (monorepo)
+# Direct file reference
+craftdesk add git+https://github.com/user/repo.git#main#file:skill.md
+
+# Subdirectory (monorepo)
 craftdesk add git+https://github.com/company/monorepo.git#main#path:skills/auth
+
+# Registry dependencies (when registry is available)
+craftdesk add ruby-on-rails
+craftdesk add @company/private-skill
 ```
 
 ---
 
-### `craftdesk remove <package>`
+### `craftdesk remove <craft>`
 
 Remove a dependency from craftdesk.json and the filesystem.
 
 **Examples:**
 ```bash
-craftdesk remove ruby-on-rails
-craftdesk remove @company/internal-skill
+craftdesk remove my-skill
+craftdesk remove my-agent
 ```
 
 ---
@@ -331,9 +335,9 @@ craftdesk list --json
 my-project@1.0.0
 
 Installed crafts:
-  📚 ruby-on-rails@7.1.2 (skill)
-  🤖 code-reviewer@2.0.1 (agent)
-  📚 postgres-expert@1.2.3 (skill)
+  • ruby-on-rails@7.1.2 (skill)
+  • code-reviewer@2.0.1 (agent)
+  • postgres-expert@1.2.3 (skill)
 
 Total: 3 crafts installed
 ```
@@ -359,28 +363,22 @@ craftdesk init --help
 
 ## Dependency Sources
 
-CraftDesk supports multiple dependency sources:
+CraftDesk currently supports Git dependencies. Registry support is under development.
 
-### 1. Registry Dependencies (Default)
+### 1. GitHub URLs (Easiest)
 
-From the public or private CraftDesk registries:
+Simply paste any GitHub URL - it auto-converts to the correct format:
 
-```json
-{
-  "dependencies": {
-    "ruby-on-rails": "^7.0.0",
-    "postgres-expert": "~1.2.0",
-    "@company/internal-skill": "^2.0.0"
-  }
-}
+```bash
+# Directory in monorepo
+craftdesk add https://github.com/user/repo/tree/main/skills/auth
+
+# Single file
+craftdesk add https://github.com/user/repo/blob/main/agent.md
+
+# Entire repository
+craftdesk add https://github.com/user/repo
 ```
-
-**Version constraints:**
-- `^1.2.3` - Compatible with 1.x.x (>=1.2.3, <2.0.0)
-- `~1.2.3` - Approximately equivalent (>=1.2.3, <1.3.0)
-- `1.2.3` - Exact version
-- `>=1.2.3` - Greater than or equal to
-- `*` or `latest` - Any version
 
 ### 2. Git Dependencies
 
@@ -411,18 +409,19 @@ From git repositories:
 - `tag` - Git tag
 - `commit` - Specific commit hash
 - `path` - Subdirectory within repo (for monorepos)
+- `file` - Direct file path (for single-file crafts)
 
-### 3. Registry with Custom URL
+### 3. Registry Dependencies (Coming Soon)
 
-Specify a different registry per dependency:
+> **Note:** Registry support is currently under development. A self-hosted registry server will be available soon.
+
+Future registry format:
 
 ```json
 {
   "dependencies": {
-    "special-tool": {
-      "version": "^2.0.0",
-      "registry": "https://tools.example.com"
-    }
+    "ruby-on-rails": "^7.0.0",
+    "@company/internal-skill": "^2.0.0"
   }
 }
 ```
@@ -596,7 +595,7 @@ Complete specification of the craftdesk.json format:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | Yes | Package name (lowercase, no spaces) |
+| `name` | string | Yes | Craft name (lowercase, no spaces) |
 | `version` | string | Yes | Semantic version (e.g., "1.0.0") |
 | `type` | string | No | Craft type: skill, agent, command, hook |
 | `description` | string | No | Short description |
@@ -605,7 +604,7 @@ Complete specification of the craftdesk.json format:
 | `dependencies` | object | No | Production dependencies |
 | `devDependencies` | object | No | Development dependencies |
 | `optionalDependencies` | object | No | Optional dependencies |
-| `registries` | object | No | Registry configuration |
+| `registries` | object | No | Registry configuration (for future use) |
 
 ---
 
@@ -686,7 +685,7 @@ jobs:
           node-version: '18'
 
       - name: Install CraftDesk CLI
-        run: npm install -g craftdesk-cli
+        run: npm install -g craftdesk
 
       - name: Install AI capabilities
         env:
@@ -703,7 +702,7 @@ jobs:
 deploy:
   image: node:18
   script:
-    - npm install -g craftdesk-cli
+    - npm install -g craftdesk
     - export CRAFTDESK_AUTH_COMPANY=$CRAFTDESK_TOKEN
     - craftdesk install --production
     - ./deploy.sh
@@ -717,7 +716,7 @@ deploy:
 FROM node:18
 
 # Install CraftDesk CLI
-RUN npm install -g craftdesk-cli
+RUN npm install -g craftdesk
 
 # Copy project files
 WORKDIR /app
@@ -759,8 +758,8 @@ Make sure you're in a directory with a craftdesk.json file, or run `craftdesk in
 
 #### `Permission denied`
 
-- For global install: `sudo npm install -g craftdesk-cli`
-- Or use npx: `npx craftdesk-cli install`
+- For global install: `sudo npm install -g craftdesk`
+- Or use npx: `npx craftdesk install`
 
 #### `Dependency conflicts`
 
@@ -793,8 +792,8 @@ craftdesk install --help
 ### Building from Source
 
 ```bash
-git clone https://github.com/your-org/craftdesk-cli.git
-cd craftdesk-cli
+git clone https://github.com/mensfeld/craftdesk.git
+cd craftdesk
 npm install
 npm run build
 npm link
@@ -838,11 +837,24 @@ MIT
 
 ## Links
 
-- **Documentation**: [https://craftdesk.ai/docs](https://craftdesk.ai/docs)
-- **Registry**: [https://craftdesk.ai](https://craftdesk.ai)
-- **Issues**: [https://github.com/your-org/craftdesk-cli/issues](https://github.com/your-org/craftdesk-cli/issues)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Repository**: [https://github.com/mensfeld/craftdesk](https://github.com/mensfeld/craftdesk)
+- **Issues**: [https://github.com/mensfeld/craftdesk/issues](https://github.com/mensfeld/craftdesk/issues)
+- **Registry** (Coming Soon): Self-hosted registry server under development
 
 ---
 
-Made with ❤️ for the AI development community
+## Roadmap
+
+- ✅ Git dependency support
+- ✅ GitHub URL auto-conversion
+- ✅ Direct file references
+- ✅ Monorepo support
+- ✅ Lockfile-based version control
+- 🚧 Self-hosted registry server (in development)
+- 🚧 Private registry authentication
+- 🚧 Dependency conflict resolution
+- 🚧 Semantic versioning for registry packages
+
+---
+
+Made for the AI development community

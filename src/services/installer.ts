@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs-extra';
 import axios from 'axios';
+import AdmZip from 'adm-zip';
 import { logger } from '../utils/logger';
 import { configManager } from './config-manager';
 import { CraftDeskLock, LockEntry } from '../types/craftdesk-lock';
@@ -253,24 +254,11 @@ export class Installer {
   }
 
   private async extractArchive(archivePath: string, outputDir: string): Promise<void> {
-    const AdmZip = require('adm-zip');
-
     try {
       // CraftDesk web API returns ZIP archives
-      if (archivePath.endsWith('.zip') || archivePath.includes('archive')) {
-        const zip = new AdmZip(archivePath);
-        zip.extractAllTo(outputDir, /* overwrite */ true);
-        logger.debug(`Extracted ZIP archive to ${outputDir}`);
-      } else {
-        // Fallback: try ZIP first, then tar.gz
-        try {
-          const zip = new AdmZip(archivePath);
-          zip.extractAllTo(outputDir, /* overwrite */ true);
-          logger.debug(`Extracted archive to ${outputDir}`);
-        } catch (zipError) {
-          throw new Error(`Unsupported archive format or corrupted file: ${archivePath}`);
-        }
-      }
+      const zip = new AdmZip(archivePath);
+      zip.extractAllTo(outputDir, /* overwrite */ true);
+      logger.debug(`Extracted ZIP archive to ${outputDir}`);
     } catch (error: any) {
       throw new Error(`Failed to extract archive: ${error.message}`);
     }

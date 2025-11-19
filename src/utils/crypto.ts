@@ -39,7 +39,7 @@ export async function verifyFileChecksum(filePath: string, expectedChecksum: str
 }
 
 /**
- * Format checksum for display (first 8 chars)
+ * Format checksum for display (first 12 chars)
  *
  * @param checksum - Full checksum string
  * @returns Shortened checksum for display

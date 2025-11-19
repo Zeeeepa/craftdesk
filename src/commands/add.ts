@@ -136,25 +136,34 @@ async function addCommand(craftArg: string, options: any): Promise<void> {
       const version = options.saveExact ? craftInfo.version : versionConstraint;
       depValue = version;
 
-      const downloadUrl = craftInfo.download_url || `http://localhost:3000/api/v1/crafts/${craftInfo.author}/${craftInfo.name}/versions/${craftInfo.version}/download`;
+      // Require download_url from API - no localhost fallback for security
+      if (!craftInfo.download_url) {
+        logger.failSpinner();
+        logger.error(`Registry did not provide download URL for ${craftInfo.author}/${craftInfo.name}@${craftInfo.version}`);
+        logger.error('The registry may be misconfigured or the craft version is incomplete.');
+        process.exit(1);
+      }
+
+      const downloadUrl = craftInfo.download_url;
 
       // Calculate checksum if not provided by API
       let integrity = craftInfo.integrity;
       if (!integrity) {
         logger.startSpinner('Computing checksum for security verification...');
         const tempDir = path.join(os.tmpdir(), 'craftdesk-verify');
-        await fs.ensureDir(tempDir);
         const tempFile = path.join(tempDir, `${craftInfo.name}-${craftInfo.version}.zip`);
 
         try {
+          await fs.ensureDir(tempDir);
           // Download to temp location
           await registryClient.downloadCraft(downloadUrl, tempFile);
           // Calculate checksum
           integrity = await calculateFileChecksum(tempFile);
           logger.succeedSpinner(`Checksum computed: ${integrity.substring(0, 12)}...`);
         } finally {
-          // Clean up temp file
-          await fs.remove(tempFile);
+          // Clean up temp file and directory
+          await fs.remove(tempFile).catch(() => {});  // Ignore errors if file doesn't exist
+          await fs.remove(tempDir).catch(() => {});   // Ignore errors if directory doesn't exist
         }
       }
 

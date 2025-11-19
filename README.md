@@ -356,9 +356,47 @@ craftdesk init --help
 
 ## Dependency Sources
 
-CraftDesk currently supports Git dependencies. Registry support is under development.
+CraftDesk supports both registry and git dependencies.
 
-### 1. GitHub URLs (Easiest)
+### 1. Registry Dependencies (CraftDesk Web API)
+
+Install crafts from the CraftDesk registry using `author/name` format:
+
+```bash
+# Search for crafts
+craftdesk search kafka
+
+# Get information about a craft
+craftdesk info john/rails-api
+
+# Add from registry
+craftdesk add john/rails-api
+craftdesk add john/rails-api@^2.1.0
+
+# Add with specific version
+craftdesk add jane/postgres-expert@1.2.0
+```
+
+**Registry format in craftdesk.json:**
+
+```json
+{
+  "dependencies": {
+    "john/rails-api": "^2.1.0",
+    "jane/kafka-processing": "~1.5.2",
+    "team/postgres-admin": "latest"
+  },
+  "registries": {
+    "default": {
+      "url": "http://localhost:3000"
+    }
+  }
+}
+```
+
+**Note:** Configure your registry URL in `craftdesk.json` under the `registries` section, or the CLI will use `http://localhost:3000` by default.
+
+### 2. GitHub URLs (Easiest for Git)
 
 Simply paste any GitHub URL - it auto-converts to the correct format:
 
@@ -373,7 +411,7 @@ craftdesk add https://github.com/user/repo/blob/main/agent.md
 craftdesk add https://github.com/user/repo
 ```
 
-### 2. Git Dependencies
+### 3. Git Dependencies
 
 From git repositories:
 
@@ -403,21 +441,6 @@ From git repositories:
 - `commit` - Specific commit hash
 - `path` - Subdirectory within repo (for monorepos)
 - `file` - Direct file path (for single-file crafts)
-
-### 3. Registry Dependencies (Coming Soon)
-
-> **Note:** Registry support is currently under development. A self-hosted registry server will be available soon.
-
-Future registry format:
-
-```json
-{
-  "dependencies": {
-    "ruby-on-rails": "^7.0.0",
-    "@company/internal-skill": "^2.0.0"
-  }
-}
-```
 
 ---
 
@@ -759,7 +782,7 @@ MIT
 
 - **Repository**: [https://github.com/mensfeld/craftdesk](https://github.com/mensfeld/craftdesk)
 - **Issues**: [https://github.com/mensfeld/craftdesk/issues](https://github.com/mensfeld/craftdesk/issues)
-- **Registry** (Coming Soon): Self-hosted registry server under development
+- **Registry**: Self-hosted registry server available at [CraftDesk Web](../web)
 
 ---
 
@@ -770,8 +793,10 @@ MIT
 - ✅ Direct file references
 - ✅ Monorepo support
 - ✅ Lockfile-based version control
-- 🚧 Self-hosted registry server (in development)
-- 🚧 Private registry authentication
+- ✅ Self-hosted registry server support
+- ✅ Registry search and info commands
+- ✅ ZIP archive extraction for registry crafts
+- 🚧 Private registry authentication (token-based)
 - 🚧 Dependency conflict resolution
 - 🚧 Semantic versioning for registry packages
 

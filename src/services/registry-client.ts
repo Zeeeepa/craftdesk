@@ -115,12 +115,29 @@ export class RegistryClient {
 
   async downloadCraft(downloadUrl: string, outputPath: string): Promise<void> {
     try {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // Ensure output directory exists
+      const outputDir = path.dirname(outputPath);
+      await fs.promises.mkdir(outputDir, { recursive: true });
+
       const response = await axios.get(downloadUrl, {
-        responseType: 'stream'
+        responseType: 'stream',
+        maxRedirects: 5
       });
 
-      // TODO: Save to file and extract
-      logger.debug(`Downloaded craft from ${downloadUrl}`);
+      // Create write stream and pipe response data
+      const writer = fs.createWriteStream(outputPath);
+      response.data.pipe(writer);
+
+      // Wait for download to complete
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', () => resolve());
+        writer.on('error', (err) => reject(err));
+      });
+
+      logger.debug(`Downloaded craft archive to ${outputPath}`);
     } catch (error: any) {
       throw new Error(`Failed to download craft: ${error.message}`);
     }
@@ -146,17 +163,28 @@ export class RegistryClient {
   }
 
   private parseCraftName(craftName: string): [string, string] {
-    if (craftName.startsWith('@')) {
-      // Scoped craft: @acme/skill-name
-      const parts = craftName.substring(1).split('/');
+    // Handle author/name format (e.g., "john/rails-api")
+    if (craftName.includes('/') && !craftName.startsWith('@')) {
+      const parts = craftName.split('/');
       if (parts.length === 2) {
-        return [`@${parts[0]}`, parts[1]];
+        return [parts[0], parts[1]];
       }
     }
 
-    // Assume author is 'anthropic' for unscoped crafts (default)
-    // This should be configurable or determined by registry
-    return ['anthropic', craftName];
+    // Handle scoped format: @author/name
+    if (craftName.startsWith('@')) {
+      const parts = craftName.substring(1).split('/');
+      if (parts.length === 2) {
+        return [parts[0], parts[1]];
+      }
+    }
+
+    // For unscoped names without author, throw error
+    // Users must specify author/name format for registry crafts
+    throw new Error(
+      `Invalid craft name format: "${craftName}". ` +
+      `Registry crafts must use "author/name" format (e.g., "john/rails-api")`
+    );
   }
 }
 

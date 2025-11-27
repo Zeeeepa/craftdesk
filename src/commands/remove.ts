@@ -3,6 +3,11 @@ import { readCraftDeskJson, writeCraftDeskJson, readCraftDeskLock, writeCraftDes
 import { logger } from '../utils/logger';
 import { installer } from '../services/installer';
 
+/**
+ * Creates the remove command for removing a craft dependency from the project.
+ *
+ * @returns The configured Commander command instance
+ */
 export function createRemoveCommand(): Command {
   return new Command('remove')
     .description('Remove a dependency')
@@ -53,13 +58,14 @@ async function removeCommand(craftName: string, options: any = {}): Promise<void
     const depFields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
 
     for (const field of depFields) {
-      if (craftDeskJson[field] && craftDeskJson[field][craftName]) {
+      const deps = craftDeskJson[field] as Record<string, unknown> | undefined;
+      if (deps && deps[craftName]) {
         found = true;
         foundInField = field;
-        delete craftDeskJson[field][craftName];
+        delete deps[craftName];
 
         // Remove empty objects
-        if (Object.keys(craftDeskJson[field]).length === 0) {
+        if (Object.keys(deps).length === 0) {
           delete craftDeskJson[field];
         }
         break;

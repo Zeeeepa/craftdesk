@@ -8,9 +8,15 @@ import { gitResolver } from '../services/git-resolver';
 import { calculateFileChecksum } from '../utils/crypto';
 import { pluginResolver } from '../services/plugin-resolver';
 import { craftWrapper } from '../services/craft-wrapper';
+import { DependencyConfig } from '../types/craftdesk-json';
 import fs from 'fs-extra';
 import os from 'os';
 
+/**
+ * Creates the 'add' command for adding and installing a new dependency
+ *
+ * @returns Commander command instance configured for adding crafts
+ */
 export function createAddCommand(): Command {
   return new Command('add')
     .description('Add a new dependency and install it')
@@ -198,7 +204,7 @@ async function addCommand(craftArg: string, options: any): Promise<void> {
     }
 
     // Add to craftdesk.json
-    craftDeskJson[depField][craftName] = depValue;
+    (craftDeskJson[depField] as Record<string, string | DependencyConfig>)[craftName] = depValue;
 
     // Save craftdesk.json
     await writeCraftDeskJson(craftDeskJson);
@@ -388,6 +394,9 @@ function parseGitUrl(urlString: string): any {
 
 /**
  * Detect if a craft is a plugin by checking for .claude-plugin/plugin.json or PLUGIN.md
+ *
+ * @param craftDir - Path to the craft installation directory
+ * @returns Promise resolving to true if plugin detected, false otherwise
  */
 async function isPlugin(craftDir: string): Promise<boolean> {
   try {
@@ -401,6 +410,12 @@ async function isPlugin(craftDir: string): Promise<boolean> {
 
 /**
  * Handle plugin installation with dependency resolution
+ *
+ * @param craftName - Name of the craft/plugin being installed
+ * @param lockEntry - Lock entry containing version and dependency information
+ * @param craftDir - Path to the craft installation directory
+ * @param lockfile - Current lockfile object to update with resolved dependencies
+ * @returns Promise that resolves when plugin and dependencies are installed
  */
 async function handlePluginInstall(
   craftName: string,
@@ -456,6 +471,11 @@ async function handlePluginInstall(
 
 /**
  * Install a single plugin dependency
+ *
+ * @param depName - Name of the dependency to install
+ * @param depInfo - Dependency specification (version string, git object, or registry object)
+ * @param lockfile - Current lockfile object to update with the new dependency
+ * @returns Promise that resolves when dependency is installed
  */
 async function installPluginDependency(
   depName: string,
@@ -603,6 +623,11 @@ async function installPluginDependency(
 
 /**
  * Handle --as-plugin flag: wrap craft as plugin
+ *
+ * @param craftName - Name of the craft to wrap
+ * @param lockEntry - Lock entry containing craft metadata
+ * @param craftDir - Path to the craft installation directory
+ * @returns Promise resolving to the wrapped plugin directory path
  */
 async function handleCraftWrapping(
   craftName: string,

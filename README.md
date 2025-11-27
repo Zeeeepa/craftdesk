@@ -13,12 +13,15 @@ The command-line interface for managing your Coding AI capabilities. Similar to 
 
 CraftDesk is a package manager for AI capabilities used in Claude Code and other AI development environments. It allows you to:
 
-- **Install AI skills, agents, commands, hooks, and plugins** from git repositories
+- **Install AI skills, agents, commands, hooks, and plugins** from git repositories or registries
+- **Plugin system** - Bundle multiple crafts with automatic dependency resolution
 - **Lock versions** for reproducible environments across teams
-- **Manage dependencies** with automatic transitive resolution
+- **Manage dependencies** with automatic recursive installation
 - **Support monorepos** with subdirectory extraction
 - **Auto-convert GitHub URLs** - paste any GitHub URL (tree/blob)
 - **Direct file references** - install single files from repositories
+- **Settings integration** - Automatic registration in `.claude/settings.json`
+- **MCP server support** - Configure Model Context Protocol servers via plugins
 
 Think of it as:
 - **npm** for Node.js → **CraftDesk** for AI capabilities
@@ -111,7 +114,22 @@ Total: 2 crafts installed
 - [What is CraftDesk?](#what-is-craftdesk)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
+- [Plugin System](#plugin-system)
 - [Command Reference](#command-reference)
+  - [init](#craftdesk-init-options)
+  - [install](#craftdesk-install-options)
+  - [add](#craftdesk-add-craft-options)
+  - [remove](#craftdesk-remove-craft)
+  - [list](#craftdesk-list-options)
+  - [search](#craftdesk-search-query-options)
+  - [info](#craftdesk-info-craft)
+  - [outdated](#craftdesk-outdated)
+  - [update](#craftdesk-update-craft)
+  - [publish](#craftdesk-publish-options)
+- [Authentication](#authentication)
+  - [login](#craftdesk-login-options)
+  - [logout](#craftdesk-logout-options)
+  - [whoami](#craftdesk-whoami-options)
 - [Dependency Sources](#dependency-sources)
 - [Monorepo Support](#monorepo-support)
 - [craftdesk.json Reference](#craftdeskjson-reference)
@@ -119,6 +137,7 @@ Total: 2 crafts installed
 - [CI/CD Integration](#cicd-integration)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
+- [Documentation](#documentation)
 
 ---
 
@@ -131,7 +150,7 @@ A **craft** is any AI capability:
 - **Agent** - Autonomous task executor (e.g., code-reviewer, test-runner)
 - **Command** - Slash command (e.g., /deploy, /analyze)
 - **Hook** - Event handler (e.g., pre-commit, post-install)
-- **Plugin** - Extended functionality or tool integration (e.g., mcp-server, custom-tools)
+- **Plugin** - Bundle of multiple crafts with dependencies and MCP server configuration
 
 ### Manifest File: craftdesk.json
 
@@ -172,11 +191,31 @@ Records exact versions installed (like package-lock.json or Gemfile.lock):
 
 **Always commit this file to version control!**
 
+### Security: Checksum Verification
+
+CraftDesk automatically verifies the integrity of downloaded packages:
+
+- **Registry packages**: SHA-256 checksums are computed when you first add a craft and stored in `craftdesk.lock`
+- **Subsequent installs**: The downloaded file is verified against the stored checksum before extraction
+- **MITM protection**: Prevents tampering during download by detecting any modifications
+- **Git packages**: Git commit hashes serve as checksums - stored in the lockfile and verified during clone
+
+**What happens on checksum mismatch:**
+```
+Error: Checksum verification failed for john/rails-api@2.1.0.
+Expected: a1b2c3d4e5f6...
+This may indicate a corrupted download or a security issue.
+Try running 'craftdesk install --no-lockfile' to re-resolve dependencies.
+```
+
+The lockfile contains SHA-256 hashes that ensure reproducible and secure installations across all team members.
+
 ### Install Directory
 
 By default, crafts install to `.claude/` in your project:
 ```
 .claude/
+├── settings.json           # Plugin configuration (auto-generated)
 ├── skills/
 │   ├── ruby-on-rails/
 │   └── postgres-expert/
@@ -186,9 +225,192 @@ By default, crafts install to `.claude/` in your project:
 │   └── deploy/
 ├── hooks/
 │   └── pre-commit/
-└── plugins/
-    └── mcp-server/
+└── plugins/                # Flat plugin installation
+    ├── company-rails-plugin/
+    │   ├── plugin.json
+    │   ├── PLUGIN.md
+    │   └── skills/...
+    └── my-skill-plugin/    # Wrapped skill
 ```
+
+---
+
+## Plugin System
+
+**New in v0.3.0**: CraftDesk now supports a comprehensive plugin system for bundling multiple crafts with automatic dependency management.
+
+### What are Plugins?
+
+Plugins allow you to:
+- **Bundle multiple crafts** (skills, agents, commands, hooks) together
+- **Declare dependencies** that are automatically installed
+- **Configure MCP servers** (Model Context Protocol) for external tools
+- **Share configurations** and related files as a cohesive package
+- **Wrap individual crafts** as plugins for better organization
+
+### Installing Plugins
+
+```bash
+# Install a plugin from registry
+craftdesk add company/rails-standards-plugin
+
+# What happens automatically:
+# 1. Plugin is installed to .claude/plugins/company-rails-standards-plugin/
+# 2. Dependencies are resolved and auto-installed
+# 3. Plugin is registered in .claude/settings.json
+# 4. MCP server is configured (if provided)
+# 5. Plugin tree is added to craftdesk.lock
+```
+
+**Example Output**:
+```
+Adding company/rails-standards-plugin...
+Found company/rails-standards-plugin@2.1.0
+Installing company/rails-standards-plugin...
+Plugin detected - resolving dependencies...
+Resolved 3 total dependencies
+Installing plugin dependency: john/rspec-testing...
+✓ Resolved john/rspec-testing@1.5.3
+Installing plugin dependency: jane/postgres-toolkit...
+✓ Resolved jane/postgres-toolkit@3.2.1
+✓ Installed company/rails-standards-plugin@2.1.0
+Craft added successfully!
+```
+
+### Plugin Structure
+
+A plugin contains a `plugin.json` manifest:
+
+```json
+{
+  "name": "company-rails-plugin",
+  "version": "2.1.0",
+  "type": "plugin",
+  "description": "Rails development standards",
+  "author": "company",
+  "components": {
+    "skills": ["coding-standards", "rails-best-practices"],
+    "agents": ["standards-enforcer"],
+    "commands": ["check-standards"]
+  },
+  "dependencies": {
+    "john/rspec-testing": "^1.5.0",
+    "jane/postgres-toolkit": "^3.2.0"
+  },
+  "mcp": {
+    "type": "stdio",
+    "command": "/usr/bin/rails-standards-mcp",
+    "args": ["--config", ".claude/plugins/company-rails-plugin/config.json"]
+  }
+}
+```
+
+### Automatic Dependency Resolution
+
+When you install a plugin, **all dependencies are automatically installed**:
+
+```bash
+$ craftdesk add company/rails-plugin
+
+# Installs dependency tree:
+# company/rails-plugin (direct)
+#   ├── john/rspec-testing (dependency)
+#   └── jane/postgres-toolkit (dependency)
+#     └── jane/sql-helpers (nested dependency)
+```
+
+All dependencies are:
+- ✅ Downloaded from their respective sources (registry/git)
+- ✅ Installed to appropriate directories
+- ✅ Verified with integrity checksums
+- ✅ Marked as dependencies in lockfile
+- ✅ Registered in `.claude/settings.json`
+
+### Wrapping Individual Crafts
+
+Convert any skill, agent, command, or hook into a plugin:
+
+```bash
+craftdesk add my-skill --as-plugin
+```
+
+**What happens**:
+1. Original craft installed to `.claude/skills/my-skill/`
+2. Plugin wrapper created at `.claude/plugins/my-skill-plugin/`
+3. `plugin.json` and `PLUGIN.md` auto-generated
+4. Craft files copied to plugin structure
+5. Registered in settings as wrapped plugin
+
+**Use cases**:
+- Add MCP server to existing skill
+- Bundle configuration with craft
+- Prepare for publishing to marketplace
+- Enable/disable craft from Claude Code UI
+
+### Plugin Tree Visualization
+
+View your plugin dependency tree:
+
+```bash
+$ craftdesk list
+
+my-project@1.0.0
+
+🔌 Plugins:
+  company/rails-standards@2.1.0
+    ├── john/rspec-testing@1.5.3
+    └── jane/postgres-toolkit@3.2.1
+  my-skill-plugin@1.0.0
+
+📚 Skills:
+  standalone-skill@1.0.0
+
+Total: 5 crafts installed
+```
+
+### Removing Plugins with Dependencies
+
+CraftDesk prevents accidental removal of required dependencies:
+
+```bash
+$ craftdesk remove john/rspec-testing
+
+Warning: john/rspec-testing is required by:
+  - company/rails-standards@2.1.0
+
+Use --force to remove anyway
+```
+
+Force removal:
+```bash
+craftdesk remove john/rspec-testing --force
+```
+
+### Settings Integration
+
+Plugins are automatically registered in `.claude/settings.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "plugins": {
+    "company-rails-plugin": {
+      "name": "company-rails-plugin",
+      "version": "2.1.0",
+      "enabled": true,
+      "installPath": "plugins/company-rails-plugin",
+      "dependencies": ["john-rspec-testing", "jane-postgres-toolkit"],
+      "mcp": {
+        "type": "stdio",
+        "command": "/usr/bin/rails-standards-mcp",
+        "args": ["--config", ".claude/plugins/company-rails-plugin/config.json"]
+      }
+    }
+  }
+}
+```
+
+**For complete details**, see [DEPENDENCY_MANAGEMENT.md](./DEPENDENCY_MANAGEMENT.md)
 
 ---
 
@@ -337,6 +559,253 @@ Total: 3 crafts installed
 
 ---
 
+### `craftdesk search <query> [options]`
+
+Search for crafts in the registry.
+
+**Options:**
+- `-t, --type <type>` - Filter by type (skill, agent, command, hook, plugin)
+
+**Examples:**
+```bash
+# Search for crafts
+craftdesk search kafka
+
+# Search for skills only
+craftdesk search rails --type skill
+
+# Search for plugins
+craftdesk search standards --type plugin
+```
+
+**Example output:**
+```
+Search results for "kafka":
+
+  john/kafka-processing@2.1.0 (skill)
+    Expert knowledge for processing Kafka messages
+
+  jane/kafka-agent@1.5.3 (agent)
+    Autonomous agent for Kafka stream management
+
+Found 2 crafts
+```
+
+---
+
+### `craftdesk info <craft>`
+
+Display detailed information about a craft from the registry.
+
+**Examples:**
+```bash
+# Get info about a craft
+craftdesk info john/rails-api
+
+# Get info about a specific version
+craftdesk info john/rails-api@2.1.0
+```
+
+**Example output:**
+```
+john/rails-api@2.1.0
+
+  Description: Rails API development best practices
+  Type:        skill
+  Author:      john
+  License:     MIT
+  Downloads:   1,234
+
+  Versions:
+    2.1.0 (latest)
+    2.0.0
+    1.5.0
+
+  Dependencies:
+    jane/postgres-toolkit: ^1.0.0
+```
+
+---
+
+### `craftdesk outdated`
+
+Check for outdated dependencies that have newer versions available.
+
+**Examples:**
+```bash
+# Check all dependencies
+craftdesk outdated
+```
+
+**Example output:**
+```
+Checking for outdated dependencies...
+
+Outdated crafts:
+
+  john/rails-api
+    Current: 2.0.0
+    Latest:  2.1.0
+    Type:    skill
+
+  jane/postgres-toolkit
+    Current: 1.2.0
+    Latest:  1.5.0
+    Type:    skill
+
+2 outdated crafts found
+Run 'craftdesk update' to update all, or 'craftdesk update <craft>' to update specific crafts.
+```
+
+---
+
+### `craftdesk update [craft]`
+
+Update dependencies to their latest compatible versions.
+
+**Examples:**
+```bash
+# Update all outdated dependencies
+craftdesk update
+
+# Update a specific craft
+craftdesk update john/rails-api
+```
+
+**What it does:**
+1. Checks for newer versions in the registry
+2. Downloads and installs updates
+3. Updates craftdesk.lock with new versions
+4. Verifies checksums for security
+
+---
+
+### `craftdesk publish [options]`
+
+Publish a craft to the registry.
+
+**Options:**
+- `--visibility <level>` - Set visibility: public, private, or organization (default: public)
+
+**Examples:**
+```bash
+# Publish the current craft
+craftdesk publish
+
+# Publish as private
+craftdesk publish --visibility private
+
+# Publish to organization only
+craftdesk publish --visibility organization
+```
+
+**Prerequisites:**
+- Must be logged in (`craftdesk login`)
+- Must have a valid `craftdesk.json` in current directory
+- Craft files must exist (SKILL.md, AGENT.md, etc.)
+
+**What it does:**
+1. Reads craftdesk.json for metadata
+2. Collects all craft files
+3. Creates a new version on the registry
+4. Publishes with specified visibility
+
+---
+
+## Authentication
+
+CraftDesk supports authenticated access to private registries.
+
+### `craftdesk login [options]`
+
+Authenticate with a registry using an API token.
+
+**Options:**
+- `-r, --registry <url>` - Registry URL (uses default from craftdesk.json if not specified)
+
+**Examples:**
+```bash
+# Login to default registry
+craftdesk login
+
+# Login to a specific registry
+craftdesk login --registry https://private.company.com
+```
+
+**How it works:**
+1. Prompts for your API token
+2. Verifies the token with the registry
+3. Stores credentials in `~/.craftdesk/config.json`
+4. Token is used for subsequent registry operations
+
+**Getting an API token:**
+- Log in to your CraftDesk registry web interface
+- Navigate to Settings → API Tokens
+- Generate a new token
+
+---
+
+### `craftdesk logout [options]`
+
+Remove stored authentication credentials.
+
+**Options:**
+- `-r, --registry <url>` - Registry URL (uses default from craftdesk.json if not specified)
+
+**Examples:**
+```bash
+# Logout from default registry
+craftdesk logout
+
+# Logout from specific registry
+craftdesk logout --registry https://private.company.com
+```
+
+---
+
+### `craftdesk whoami [options]`
+
+Display the currently logged-in user.
+
+**Options:**
+- `-r, --registry <url>` - Registry URL (uses default from craftdesk.json if not specified)
+
+**Examples:**
+```bash
+# Check current user
+craftdesk whoami
+
+# Check user for specific registry
+craftdesk whoami --registry https://private.company.com
+```
+
+**Example output:**
+```
+Logged in to https://craftdesk.ai as john (john@example.com)
+Organization: acme-corp
+```
+
+---
+
+### Environment Variable Authentication
+
+For CI/CD environments, you can use environment variables instead of `craftdesk login`:
+
+```bash
+# For a registry named "company-private" in craftdesk.json
+export CRAFTDESK_AUTH_COMPANY_PRIVATE=your_api_token_here
+
+# For the default registry
+export CRAFTDESK_AUTH_LOCALHOST_3000=your_api_token_here
+
+# The variable name is derived from the registry URL:
+# https://example.com -> CRAFTDESK_AUTH_EXAMPLE_COM
+```
+
+Environment variables take precedence over stored credentials.
+
+---
+
 ### Global Options
 
 Available for all commands:
@@ -356,9 +825,75 @@ craftdesk init --help
 
 ## Dependency Sources
 
-CraftDesk currently supports Git dependencies. Registry support is under development.
+CraftDesk supports both registry and git dependencies.
 
-### 1. GitHub URLs (Easiest)
+### 1. Registry Dependencies (CraftDesk Web API)
+
+Install crafts from the CraftDesk registry using `author/name` format:
+
+```bash
+# Search for crafts
+craftdesk search kafka
+
+# Get information about a craft
+craftdesk info john/rails-api
+
+# Add from registry
+craftdesk add john/rails-api
+craftdesk add john/rails-api@^2.1.0
+
+# Add with specific version
+craftdesk add jane/postgres-expert@1.2.0
+```
+
+**Registry format in craftdesk.json:**
+
+```json
+{
+  "dependencies": {
+    "john/rails-api": "^2.1.0",
+    "jane/kafka-processing": "~1.5.2",
+    "team/postgres-admin": "latest"
+  },
+  "registries": {
+    "default": {
+      "url": "http://localhost:3000"
+    }
+  }
+}
+```
+
+**Important:** You must configure your registry URL in `craftdesk.json` to use registry-based crafts. Git-based dependencies (GitHub URLs) work without any registry configuration.
+
+**Private Registry Authentication:**
+
+For private registries, set authentication tokens via environment variables:
+
+```bash
+# For a registry named "company-private" in craftdesk.json
+export CRAFTDESK_AUTH_COMPANY_PRIVATE=your_token_here
+
+# For default registry
+export CRAFTDESK_AUTH_DEFAULT=your_token_here
+```
+
+Example `craftdesk.json` with private registry:
+
+```json
+{
+  "registries": {
+    "default": {
+      "url": "https://your-registry.com"
+    },
+    "company-private": {
+      "url": "https://private.company.com",
+      "scope": "@company"
+    }
+  }
+}
+```
+
+### 2. GitHub URLs (Easiest for Git)
 
 Simply paste any GitHub URL - it auto-converts to the correct format:
 
@@ -373,7 +908,7 @@ craftdesk add https://github.com/user/repo/blob/main/agent.md
 craftdesk add https://github.com/user/repo
 ```
 
-### 2. Git Dependencies
+### 3. Git Dependencies
 
 From git repositories:
 
@@ -403,21 +938,6 @@ From git repositories:
 - `commit` - Specific commit hash
 - `path` - Subdirectory within repo (for monorepos)
 - `file` - Direct file path (for single-file crafts)
-
-### 3. Registry Dependencies (Coming Soon)
-
-> **Note:** Registry support is currently under development. A self-hosted registry server will be available soon.
-
-Future registry format:
-
-```json
-{
-  "dependencies": {
-    "ruby-on-rails": "^7.0.0",
-    "@company/internal-skill": "^2.0.0"
-  }
-}
-```
 
 ---
 
@@ -749,6 +1269,19 @@ npm publish
 
 ---
 
+## Documentation
+
+### Core Documentation
+- **[README.md](./README.md)** - This file, general overview and quick start
+- **[DEPENDENCY_MANAGEMENT.md](./DEPENDENCY_MANAGEMENT.md)** - Complete guide to dependency management
+- **[PLUGIN_IMPLEMENTATION_COMPLETE.md](./PLUGIN_IMPLEMENTATION_COMPLETE.md)** - Plugin system implementation details
+
+### Additional Resources
+- **[Package.json](./package.json)** - Project metadata and scripts
+- **[TypeScript Source](./src/)** - Full source code
+
+---
+
 ## License
 
 MIT
@@ -759,21 +1292,45 @@ MIT
 
 - **Repository**: [https://github.com/mensfeld/craftdesk](https://github.com/mensfeld/craftdesk)
 - **Issues**: [https://github.com/mensfeld/craftdesk/issues](https://github.com/mensfeld/craftdesk/issues)
-- **Registry** (Coming Soon): Self-hosted registry server under development
+- **Registry**: Self-hosted registry server available at [CraftDesk Web](../web)
 
 ---
 
 ## Roadmap
 
+### Completed (v0.3.0)
 - ✅ Git dependency support
 - ✅ GitHub URL auto-conversion
 - ✅ Direct file references
 - ✅ Monorepo support
 - ✅ Lockfile-based version control
-- 🚧 Self-hosted registry server (in development)
-- 🚧 Private registry authentication
-- 🚧 Dependency conflict resolution
-- 🚧 Semantic versioning for registry packages
+- ✅ Self-hosted registry server support
+- ✅ ZIP archive extraction for registry crafts
+- ✅ **Plugin system** with dependency management
+- ✅ **Auto-install plugin dependencies** (recursive)
+- ✅ **Settings integration** (.claude/settings.json)
+- ✅ **MCP server configuration** via plugins
+- ✅ **Craft wrapping** (--as-plugin flag)
+- ✅ **Plugin tree visualization**
+- ✅ **Dependency removal protection**
+- ✅ SHA-256 checksum verification (MITM protection)
+- ✅ Registry search and info commands
+- ✅ `craftdesk publish` command
+- ✅ `craftdesk outdated` command
+- ✅ `craftdesk update` command
+- ✅ **Authentication system** (login/logout/whoami)
+- ✅ **Private registry authentication** (token-based)
+- ✅ **Environment variable auth** (CI/CD support)
+- ✅ Semantic versioning for registry packages
+
+### Planned
+- 🔲 Plugin marketplace/directory
+- 🔲 `craftdesk validate <plugin>` command
+- 🔲 Multiple dependency versions support
+- 🔲 Peer dependency warnings
+- 🔲 Persistent download cache
+- 🔲 Offline installation mode
+- 🔲 Interactive dependency conflict resolution
 
 ---
 

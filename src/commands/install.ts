@@ -38,6 +38,16 @@ async function installCommand(options: any): Promise<void> {
     if (lockfile) {
       // Install from lockfile
       logger.info('Installing from craftdesk.lock...');
+
+      // Show plugin tree info if present
+      if (lockfile.pluginTree && Object.keys(lockfile.pluginTree).length > 0) {
+        const pluginCount = Object.keys(lockfile.pluginTree).length;
+        const directPlugins = Object.values(lockfile.pluginTree).filter(p => !p.isDependency).length;
+        const depPlugins = pluginCount - directPlugins;
+
+        logger.info(`Plugin dependencies: ${directPlugins} direct, ${depPlugins} transitive`);
+      }
+
       logger.startSpinner('Installing crafts...');
 
       await installer.installFromLockfile(lockfile);
@@ -80,10 +90,17 @@ async function installCommand(options: any): Promise<void> {
         if (entry.needsResolution) {
           const craftInfo = await registryClient.getCraftInfo(name, entry.version, entry.registry);
           if (craftInfo) {
+            // Require download_url from registry - no defaults for security
+            if (!craftInfo.download_url) {
+              logger.failSpinner();
+              logger.error(`Registry did not provide download URL for ${name}@${craftInfo.version}`);
+              process.exit(1);
+            }
+
             resolution.resolved[name] = {
               version: craftInfo.version,
-              resolved: craftInfo.download_url || `http://localhost:3000/api/v1/crafts/${craftInfo.author}/${craftInfo.name}/versions/${craftInfo.version}/download`,
-              integrity: craftInfo.integrity || 'sha256-placeholder',
+              resolved: craftInfo.download_url,
+              integrity: craftInfo.integrity,
               type: craftInfo.type,
               author: craftInfo.author,
               dependencies: craftInfo.dependencies || {}

@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended"
   ],
+  "minimumReleaseAge": "7 days",
   "github-actions": {
     "enabled": true,
     "pinDigests": true
@@ -14,12 +15,6 @@
   "packageRules": [
     {
       "matchManagers": [
-        "github-actions"
-      ],
-      "minimumReleaseAge": "7 days"
-    },
-    {
-      "matchManagers": [
         "npm"
       ],
       "matchDepTypes": [
@@ -27,6 +22,12 @@
       ],
       "groupName": "dev dependencies",
       "commitMessageTopic": "dev dependencies"
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
     }
   ]
 }
